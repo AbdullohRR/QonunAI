@@ -290,3 +290,22 @@ cd backend && pytest tests/ -v
 | SSE arrives all at once | Proxy buffering | Disable `proxy_buffering` for `/api/` |
 | Worker OOM | Each worker loads the model | Lower `--concurrency`, or raise the memory limit |
 | `budget_tokens` / `temperature` 400 from Anthropic | Removed on current models | The provider uses adaptive thinking + `effort`; don't re-add them |
+
+---
+
+### Before you run this against production data
+
+- **lex.uz has no documented public API.** The connector prefers a JSON
+  endpoint if you have an access agreement with the Ministry of Justice, and
+  otherwise falls back to polite HTML scraping. Confirm the terms of use,
+  and seek written permission for sustained crawling.
+- **The HTML selectors will eventually break.** They're isolated at the top
+  of `connectors/lexuz.py`, and a daily `connector_selfcheck_task` alerts you
+  when they stop matching — a silent break otherwise degrades to an empty
+  corpus, which surfaces as "no sources found" rather than an error.
+- **norma.uz is a commercial publisher.** Confirm your licence covers
+  derivative indexing. Its content is typed `COMMENTARY` and never presented
+  as binding law.
+- **Court decisions are not a source of law** in Uzbekistan's civil-law
+  system. They're indexed for interpretation only and rendered with a
+  non-binding marker.
