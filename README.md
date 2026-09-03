@@ -24,9 +24,9 @@ gold set spanning every indexed act — see [Retrieval benchmark](#retrieval-ben
 which also records where an earlier, better-looking 1.000 came from and why it
 was not kept. 503 tests run on every push.
 
-This README is long on purpose: it documents what was measured, what was tried
-and rejected, and where the system still fails. If you are skimming, these four
-sections carry the engineering:
+What was measured, what was tried and rejected, and where the system still
+fails is all written down — in [docs/](#documentation) where it does not crowd
+this page. If you are skimming, these four carry the engineering:
 
 | | |
 |---|---|
