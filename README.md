@@ -1,27 +1,43 @@
 <div align="center">
 
-# ⚖️ QonunAI
+# QonunAI
 
 **An AI legal research platform for the Republic of Uzbekistan — a hybrid-RAG system that answers legal questions in Uzbek (Latin & Cyrillic), Russian, and English, grounded in real statutory text with verifiable article-level citations.**
 
-Every legal claim resolves to a real `[Sn]` source tag. Citations to articles that were never retrieved get stripped before they reach the user, not just flagged — see [How the anti-hallucination guarantee actually works](#-how-the-anti-hallucination-guarantee-actually-works).
+Every legal claim resolves to a real `[Sn]` source tag. Citations to articles that were never retrieved get stripped before they reach the user, not just flagged — see [How the anti-hallucination guarantee actually works](#how-the-anti-hallucination-guarantee-actually-works).
 
 **[→ Try the live app](https://ai-frontend-ten-roan.vercel.app)**  ·  [API](https://uzlex-ai.fly.dev/docs)  ·  [Health & corpus status](https://uzlex-ai.fly.dev/health)
 
+[![Backend tests](https://github.com/AbdullohRR/QonunAI/actions/workflows/backend-tests.yml/badge.svg)](https://github.com/AbdullohRR/QonunAI/actions/workflows/backend-tests.yml)
 [![Python](https://img.shields.io/badge/Python-3.12-blue?logo=python&logoColor=white)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
-[![Next.js](https://img.shields.io/badge/Frontend-Next.js%2016-000000?logo=nextdotjs&logoColor=white)](https://nextjs.org/)
 [![PostgreSQL](https://img.shields.io/badge/DB-PostgreSQL%20%2B%20pgvector-4169E1?logo=postgresql&logoColor=white)](https://github.com/pgvector/pgvector)
-[![Tests](https://img.shields.io/badge/tests-503%20passing-2ea44f)](backend/tests/)
-[![Recall@5](https://img.shields.io/badge/Recall%405-0.931-2ea44f)](backend/benchmarks/)
-[![MRR](https://img.shields.io/badge/MRR-0.852-2ea44f)](backend/benchmarks/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 </div>
 
 ---
 
-## ✨ What is this?
+**At a glance.** 13 codes indexed, 11,538 chunks, live on Fly.io + Vercel.
+Retrieval scores **Recall@5 = 0.931, MRR = 0.852** on `uzlegal-v1`, a 58-question
+gold set spanning every indexed act — see [Retrieval benchmark](#retrieval-benchmark),
+which also records where an earlier, better-looking 1.000 came from and why it
+was not kept. 503 tests run on every push.
+
+This README is long on purpose: it documents what was measured, what was tried
+and rejected, and where the system still fails. If you are skimming, these four
+sections carry the engineering:
+
+| | |
+|---|---|
+| [Architecture](#how-it-works--architecture) | How a question becomes a cited answer |
+| [Anti-hallucination](#how-the-anti-hallucination-guarantee-actually-works) | Why a fabricated citation cannot reach the user — and the bug that broke it |
+| [Retrieval benchmark](#retrieval-benchmark) | The measurements, including the unflattering ones |
+| [Deployment status](#deployment-status) | Four defects that hid a silently-dead dense retrieval path |
+
+---
+
+## What is this?
 
 Ask a legal question the way you'd actually ask it — in any of four languages, in
 either Uzbek script — and get back an answer grounded only in the actual text of
@@ -35,7 +51,7 @@ the Constitution and Codes, never a guess from the model's own training data.
 mandatory Uzbek law, with concrete risks and redrafting suggestions — not a
 generic "looks fine to me."
 
-## 🎬 Demo
+## Demo
 
 <div align="center">
 <img src="assets/demo.gif" alt="QonunAI live demo — asking a legal question and getting a cited, risk-scored answer" width="720"/>
@@ -50,24 +66,24 @@ Both are drawn from recorded sessions against `uzlex-ai.fly.dev` — the
 questions, answers, sources, retrieval times and elapsed times in them are the
 captured ones, rendered as a terminal rather than filmed from the browser.
 
-## 🏆 Key features
+## Key features
 
 | | |
 |---|---|
-| 📌 **Citation-grounded Q&A** | Every legal statement carries an `[Sn]` tag resolving to a specific article. Uncited or unverifiable answers are rejected, not softened. |
-| 🔗 **Article-level deep links** | Citations open the *provision*, not the top of a 4 MB document — `lex.uz/docs/6257288#6259020` lands directly on 80-modda. See [Deep linking into lex.uz](#-deep-linking-into-lexuz). |
-| 🔍 **Hybrid retrieval** | Dense (`bge-m3` + pgvector HNSW) + sparse (per-language Postgres FTS) + article-title + exact-article lookup, fused by RRF. Cross-encoder reranking is implemented but off in the live deployment — see [Deployment status](#-deployment-status). |
-| ⚖️ **Legal hierarchy reasoning** | Constitution > Codes > Laws > Decrees, then *lex specialis*, then *lex posterior* — computed deterministically from adoption dates and act type, not left to the model to reason about on the fly. |
-| 🔗 **Cross-reference expansion** | "…in the cases provided for by Article 333 of this Code" automatically pulls Article 333 into context. |
-| 📄 **Document analysis** | Contracts segmented clause-by-clause, screened against mandatory Uzbek norms by both regex red-flags and an LLM compliance pass, with risk levels and concrete redrafting suggestions. |
-| 🌐 **Trilingual + dual-script** | Uzbek Latin↔Cyrillic transliteration on both queries and index. Ask in Russian, retrieve from a Cyrillic-only source, answer in Russian — cross-language retrieval, not just translation. |
-| 🚦 **Independent risk scoring** | The risk level shown is the *higher* of the model's own claim and a rule-based assessor (procedural deadlines, criminal exposure, conflicting provisions) — under-stating risk is the expensive failure mode here. |
-| 🔀 **Provider-agnostic LLM layer** | Anthropic, any OpenAI-compatible endpoint (Groq, Gemini, vLLM, Together), or local Ollama — swappable via one env var, no code changes. |
-| 💬 **Answers shaped by how you asked** | Reply in the script you typed, at the length you asked for, and answer ordinary questions like a person instead of deflecting — see [Answering the way the question was asked](#-answering-the-way-the-question-was-asked). |
-| 🔑 **Four ways to sign in** | Email, Telegram, Google, and phone-by-SMS — each dormant until its provider is configured, never a button that cannot work. See [Accounts and sign-in](#-accounts-and-sign-in). |
-| 💳 **Plans and billing** | Free / signed-in / Pro tiers with per-day request limits, and a Payme merchant integration for Pro — see [Plans and billing](#-plans-and-billing). |
+| **Citation-grounded Q&A** | Every legal statement carries an `[Sn]` tag resolving to a specific article. Uncited or unverifiable answers are rejected, not softened. |
+| **Article-level deep links** | Citations open the *provision*, not the top of a 4 MB document — `lex.uz/docs/6257288#6259020` lands directly on 80-modda. See [Deep linking into lex.uz](#deep-linking-into-lexuz). |
+| **Hybrid retrieval** | Dense (`bge-m3` + pgvector HNSW) + sparse (per-language Postgres FTS) + article-title + exact-article lookup, fused by RRF. Cross-encoder reranking is implemented but off in the live deployment — see [Deployment status](#deployment-status). |
+| **Legal hierarchy reasoning** | Constitution > Codes > Laws > Decrees, then *lex specialis*, then *lex posterior* — computed deterministically from adoption dates and act type, not left to the model to reason about on the fly. |
+| **Cross-reference expansion** | "…in the cases provided for by Article 333 of this Code" automatically pulls Article 333 into context. |
+| **Document analysis** | Contracts segmented clause-by-clause, screened against mandatory Uzbek norms by both regex red-flags and an LLM compliance pass, with risk levels and concrete redrafting suggestions. |
+| **Trilingual + dual-script** | Uzbek Latin↔Cyrillic transliteration on both queries and index. Ask in Russian, retrieve from a Cyrillic-only source, answer in Russian — cross-language retrieval, not just translation. |
+| **Independent risk scoring** | The risk level shown is the *higher* of the model's own claim and a rule-based assessor (procedural deadlines, criminal exposure, conflicting provisions) — under-stating risk is the expensive failure mode here. |
+| **Provider-agnostic LLM layer** | Anthropic, any OpenAI-compatible endpoint (Groq, Gemini, vLLM, Together), or local Ollama — swappable via one env var, no code changes. |
+| **Answers shaped by how you asked** | Reply in the script you typed, at the length you asked for, and answer ordinary questions like a person instead of deflecting — see [Answering the way the question was asked](#answering-the-way-the-question-was-asked). |
+| **Four ways to sign in** | Email, Telegram, Google, and phone-by-SMS — each dormant until its provider is configured, never a button that cannot work. See [Accounts and sign-in](#accounts-and-sign-in). |
+| **Plans and billing** | Free / signed-in / Pro tiers with per-day request limits, and a Payme merchant integration for Pro — see [Plans and billing](#plans-and-billing). |
 
-## 🧱 Tech stack
+## Tech stack
 
 - **Backend:** FastAPI, SQLAlchemy 2 (async), Alembic, Celery + Redis (ingestion, corpus stats, connector health checks)
 - **Retrieval:** PostgreSQL 16 + pgvector (HNSW cosine), `BAAI/bge-m3` multilingual embeddings, Postgres full-text search, `BAAI/bge-reranker-v2-m3` cross-encoder
@@ -75,7 +91,7 @@ captured ones, rendered as a terminal rather than filmed from the browser.
 - **Frontend:** Next.js 16 (App Router), React 19, TypeScript (strict), Tailwind — token-streamed SSE chat with markdown rendering and deep-linked citation cards
 - **Ingestion:** rate-limited, robots-aware connectors for lex.uz / norma.uz / data.egov.uz, with HTML/PDF+OCR/DOCX parsing and a hierarchy builder (Qism → Bo'lim → Bob → Modda → Band)
 
-## 🔁 How it works — architecture
+## How it works — architecture
 
 ```mermaid
 flowchart TD
@@ -115,7 +131,7 @@ flowchart TD
 
 Full diagrams and design rationale: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
-## ⚖️ How the anti-hallucination guarantee actually works
+## How the anti-hallucination guarantee actually works
 
 The hard part of a legal AI isn't generating fluent text — it's refusing to
 invent law. Prompt instructions alone don't achieve that, so the guarantee is
@@ -202,7 +218,7 @@ Ishdan bo'shash tartibi qanday?   → retrieval_ms 1692 · 9 sources · 3 citati
 Osh qanday pishiriladi?           → retrieval_ms    0 · conversational, as intended
 ```
 
-## 🔗 Deep linking into lex.uz
+## Deep linking into lex.uz
 
 A citation that opens a four-megabyte document and leaves you to scroll isn't a
 citation. QonunAI links straight to the article — and getting there required
@@ -240,7 +256,7 @@ article number, or genuinely ambiguous ones, and degrade to document links.
 docker compose exec backend python -m app.workers.backfill_anchors --dry-run
 ```
 
-## 💬 Answering the way the question was asked
+## Answering the way the question was asked
 
 Three behaviours that sound like prompt tweaks and were not. Each needed a
 mechanism, and each failed first in a way worth recording.
@@ -306,7 +322,7 @@ This is the feature that created the grounding hole described
 [above](#the-way-this-guarantee-actually-got-broken) — worth reading as a pair,
 because the pleasant behaviour and the dangerous one came from the same change.
 
-## 🔑 Accounts and sign-in
+## Accounts and sign-in
 
 Four methods, all live in the API. Each stays **dormant until its provider is
 configured** — an unconfigured provider returns a clean `503`, the UI does not
@@ -351,7 +367,7 @@ testing which numbers have accounts.
 > enabled. Display names now fall back name → email → phone → generic, and
 > every branch is reachable.
 
-## 💳 Plans and billing
+## Plans and billing
 
 | Tier | Requests / day | How you get it |
 |---|---|---|
@@ -385,7 +401,7 @@ tests aim at:
 Billing stays off until `PAYME_ENABLED=true`, and the checkout button is hidden
 while it is off.
 
-## 🎨 Interface
+## Interface
 
 The frontend is a full product surface, not a debug console: a marketing
 landing page, a streamed chat view with deep-linked citation cards and risk
@@ -432,7 +448,7 @@ Full instructions, including crawling lex.uz directly: [`docs/DEPLOYMENT.md`](do
 > restart backend` picks up code changes. `.env` changes need a recreate:
 > `docker compose up -d backend`.
 
-## 🚀 Production deployment
+## Production deployment
 
 The live instance runs split across two providers:
 
@@ -512,7 +528,7 @@ Python holds `1 == True`, so a membership test silently accepts the integer
 > green. That is how a syntax error reached production here and took the API
 > down with a crash loop.
 
-## 🚧 Deployment status
+## Deployment status
 
 The live app runs dense retrieval, sparse full-text search, article-title
 search and exact-article lookup, fused by RRF. **Cross-encoder reranking is
@@ -642,7 +658,7 @@ script is loaded.
 
 Set them with `flyctl secrets set` — never in `fly.toml`, which is committed.
 
-## 📊 Retrieval benchmark
+## Retrieval benchmark
 
 Quality claims are measured, not asserted. `uzlegal-v1`
 ([`backend/benchmarks/`](backend/benchmarks/)) holds **58 scored questions**
