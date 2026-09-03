@@ -288,3 +288,37 @@ def test_english_queries_are_not_transliterated_into_cyrillic():
     assert not any(t in garbage for t in ("ҳоw", "манй", "дайс", "аннуал", "леаве")), terms
     # and the real bridge survived
     assert any("отпуск" in t for t in terms), terms
+
+def test_russian_employment_question_reaches_the_uzbek_labour_code():
+    """A Russian question about dismissal must reach the Cyrillic-only Labour Code.
+
+    The Labour Code is indexed in Uzbek Cyrillic only -- there is no Russian
+    Labour Code in this corpus -- so a Russian question can reach it through the
+    lexical branches only if the glossary bridges the vocabulary.
+
+    It did not. The Russian and Uzbek employment groups were separate frozensets
+    sharing only English terms, and `_index` emits English as a key and never as
+    a value, so the two never met. Measured against the live instance:
+    "Основания расторжения трудового договора по инициативе работодателя" expanded to zero
+    terms and returned Civil Code 382/385/364 -- contract termination under the
+    *Civil* Code, which is a different body of law.
+
+    Both grammatical cases are asserted because `normalise_token` lowercases and
+    folds apostrophes but does not stem: the genitive a real question uses is a
+    different table key from the nominative, and only listing the nominative
+    leaves the realistic phrasing unexpanded.
+    """
+    nominative = ["расторжение", "трудового", "договора"]
+    genitive = ["основания", "расторжения", "трудового", "договора"]
+
+    for tokens in (nominative, genitive):
+        expanded = expand_tokens(tokens)
+        # The Cyrillic forms are what the Labour Code's own text contains.
+        assert "меҳнат шартномаси" in expanded, tokens
+        assert any("ишдан" in term for term in expanded), tokens
+
+
+def test_uvolnenie_alone_bridges_to_uzbek():
+    """The single most likely one-word Russian phrasing must bridge too."""
+    expanded = expand_tokens(["увольнение"])
+    assert any("ишдан бўшатиш" in t or "ishdan bo" in t for t in expanded)

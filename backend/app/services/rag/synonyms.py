@@ -44,6 +44,21 @@ SYNONYM_GROUPS: tuple[frozenset[str], ...] = (
     # what the union in `_index` is for.
     frozenset({"ishdan bo'shash", "ishdan bo'shatish", "ishdan ketish",
                "ishdan chiqish", "mehnat shartnomasini bekor qilish",
+               # Russian belongs in this group, not a parallel one. The two
+               # were separate sets sharing only English terms, and English is
+               # a key and never a value -- so a Russian question expanded to
+               # its Russian siblings and never reached the Cyrillic-only
+               # Labour Code. Measured: "Основания расторжения трудового договора..." expanded to
+               # nothing at all and returned Civil Code 382/385/364.
+               #
+               # Both cases are listed because normalise_token lowercases and
+               # folds apostrophes but does not stem, so the genitive that a
+               # real question uses is a different key from the nominative.
+               "увольнение", "увольнения",
+               "расторжение трудового договора",
+               "расторжения трудового договора",
+               "прекращение трудового договора",
+               "прекращения трудового договора",
                "dismissal", "dismissed", "fired", "termination of employment"}),
     # Voluntary resignation. The Labour Code frames it as termination "at the
     # employee's initiative"; people say "I want to leave myself". This is the
@@ -74,9 +89,8 @@ SYNONYM_GROUPS: tuple[frozenset[str], ...] = (
     frozenset({"javobgarlik", "mas'uliyat", "ответственность",
                "юридическая ответственность", "liability", "responsibility"}),
     # --- Russian: employment ----------------------------------------------
-    frozenset({"увольнение", "расторжение трудового договора",
-               "прекращение трудового договора",
-               "dismissal", "dismissed", "fired", "termination of employment"}),
+    # Merged into the Uzbek employment group above, so the two languages
+    # actually reach each other.
     # Listed without the preposition too: "по" is stripped as framing before
     # expansion runs, so a group keyed only on the full phrase never matches.
     frozenset({"собственному желанию", "собственное желание",
@@ -113,6 +127,11 @@ SYNONYM_GROUPS: tuple[frozenset[str], ...] = (
     # separation the two groups exist to preserve.
     frozenset({"bitim", "сделка", "transaction"}),
     frozenset({"shartnoma", "договор", "contract", "agreement"}),
+    # "трудовой договор" is a term of art, not "договор" with a modifier: it
+    # is the Labour Code's subject and the Civil Code's is not. Without its own
+    # entry a Russian question about one retrieves the other.
+    frozenset({"mehnat shartnomasi", "трудовой договор",
+               "трудового договора", "employment contract", "labour contract"}),
     frozenset({"mulk", "собственность", "property", "ownership"}),
     frozenset({"meros", "наследство", "наследование", "inheritance",
                "succession"}),
@@ -184,7 +203,8 @@ _ENGLISH_TERMS = frozenset({
     "voluntarily", "wage", "wages", "salary", "annual leave", "vacation",
     "holiday", "punishment", "penalty", "sentence", "fine", "liability",
     "responsibility", "housing", "dwelling", "transaction", "contract",
-    "agreement", "property", "ownership", "inheritance", "succession",
+    "agreement", "employment contract", "labour contract",
+    "property", "ownership", "inheritance", "succession",
     "crime", "criminal offence", "offence", "theft", "stealing", "murder",
     "homicide", "guilt", "fault", "interrogation", "questioning", "evidence",
     "proof", "investigator", "witness", "claim", "lawsuit", "court", "judge",
