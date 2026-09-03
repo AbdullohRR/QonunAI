@@ -1,0 +1,56 @@
+name: Backend tests
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: pytest
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      # The suite is fully offline: no Postgres, no Redis, no LLM provider and
+      # no network. Retrieval, reranking and gateway tests exercise real code
+      # paths against fakes, so the full requirements set is installed rather
+      # than a hand-picked subset -- sentence-transformers and torch are
+      # imported at module scope by app.services.rag.embedder.
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio
+
+      - name: Run tests
+        env:
+          # config.py ships a development default for SECRET_KEY; set an
+          # explicit one so CI never exercises the fallback path.
+          SECRET_KEY: ci-secret-key-not-used-for-anything-real
+        run: pytest -q
+
+  lint:
+    name: ruff
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install ruff
+      # Errors only: undefined names, syntax errors and unreachable imports.
+      # Style is deliberately not enforced here.
+      - name: Lint for errors
+        run: ruff check --select E9,F63,F7,F82 backend/app backend/benchmarks
